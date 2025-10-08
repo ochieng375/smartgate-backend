@@ -1,14 +1,16 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import datetime
+import os
 
 app = Flask(__name__)
 
 # MongoDB setup
-client = MongoClient("your MongoDB Atlas URI here")
+client = MongoClient(os.environ.get("DB_URI"))
 db = client.smartgate
 students = db.students
 logs = db.access_logs
+incidents = db.incidents
 
 # Manual access route
 @app.route("/api/manual-access", methods=["POST"])
@@ -38,17 +40,18 @@ def get_students():
 def get_logs():
     return jsonify(list(logs.find({}, {"_id": 0})))
 
-# Submit incident report (optional)
+# Submit incident report
 @app.route("/api/incidents", methods=["POST"])
 def report_incident():
     data = request.json
-    db.incidents.insert_one({
+    incidents.insert_one({
         "student_id": data.get("student_id"),
         "description": data.get("description"),
         "timestamp": datetime.datetime.now()
     })
     return jsonify({"message": "Incident submitted"}), 200
 
-# Run the app
+# Run the app on Render-compatible host and port
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
